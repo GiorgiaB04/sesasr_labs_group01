@@ -31,7 +31,7 @@ class ExtendedEKFNode(EKFNode):
         
         super().__init__()
         self.get_logger().info("Extended EKF: state = [x, y, θ, v, ω]")
-        yaml_file = '/home/giorgia/ros2_ws/src/turtlebot3_perception/turtlebot3_perception/config/landmarks.yaml'  
+        yaml_file = '/home/giorgia/group_101/src/lab04_pkg/lab04_pkg/landmarks_real.yaml'  
         self.landmark_ids, self.landmarks = load_landmarks(yaml_file)
         self.get_logger().info(f"Loaded {len(self.landmarks)} landmarks from YAML.")
 

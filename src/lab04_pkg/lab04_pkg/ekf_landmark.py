@@ -30,7 +30,7 @@ class EKFNode(Node):
 
         # ---- Load landmarks from YAML ----
         # NOTE: Verify this path is correct for your environment
-        yaml_file = '/home/giorgia/ros2_ws/src/lab04_pkg/lab04_pkg/landmarks_real.yaml'  
+        yaml_file = '/home/giorgia/group_101/src/lab04_pkg/lab04_pkg/landmarks_real.yaml'  
         self.landmark_ids, self.landmarks = load_landmarks(yaml_file)
         self.get_logger().info(f"Loaded {len(self.landmarks)} landmarks from YAML.")
 
