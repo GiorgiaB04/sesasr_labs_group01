@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'lab03_pkg'
+package_name = 'lab04_pkg'
 
 setup(
     name=package_name,
@@ -24,7 +24,9 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'bum_go_mod = lab03_pkg.bum_go_mod:main',
+            'ekf_landmark_node = lab04_pkg.ekf_landmark:main',
+            'task2_node = lab04_pkg.task2:main',
         ],
+    
     },
 )
