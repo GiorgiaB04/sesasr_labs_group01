@@ -25,7 +25,7 @@ setup(
     entry_points={
         'console_scripts': [
             'ekf_landmark_node = lab04_pkg.ekf_landmark:main',
-            'task2_node = lab04_pkg.task2:main',
+            'task2_node = lab04_pkg.task2_def:main',
         ],
     
     },
