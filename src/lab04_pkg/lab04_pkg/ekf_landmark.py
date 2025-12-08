@@ -44,7 +44,7 @@ class EKFNode(Node):
 
         # Tuning Parameters
         self.alpha = np.array([0.001, 0.01, 0.1, 0.2, 0.05, 0.05])
-        self.ekf.Mt = eye(2)
+        self.ekf.Mt = np.eye(2)
         self.sigma_u = np.array([0.1, 0.1])
         self.sigma_z = np.array([0.3, math.pi / 24])
         self.Qt = np.diag(self.sigma_z**2)
