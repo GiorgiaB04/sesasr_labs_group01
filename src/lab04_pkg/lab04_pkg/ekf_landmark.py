@@ -44,7 +44,7 @@ class EKFNode(Node):
 
         # Tuning Parameters
         self.alpha = np.array([0.001, 0.01, 0.1, 0.2, 0.05, 0.05])
-        self.ekf.Mt = np.diag([0.1, 0.1]) # Note: This might need further tuning if your EKF class doesn't use the alpha values
+        self.ekf.Mt = eye(2)
         self.sigma_u = np.array([0.1, 0.1])
         self.sigma_z = np.array([0.3, math.pi / 24])
         self.Qt = np.diag(self.sigma_z**2)
@@ -85,23 +85,29 @@ class EKFNode(Node):
         dt = (now - self.last_time).nanoseconds / 1e9 
         self.last_time = now 
         
-        # --- MODIFICATION: EKF PREDICTION STEP ADDED ---
         if self.initialized:
             
+            v = self.last_cmd[0]
+            w = self.last_cmd[1]
+            alpha = self.alpha
+            
+            # --- REQUIRED: Dynamic calculation of Mt ---
+            v_var = alpha[0]*v**2 + alpha[1]*w**2
+            w_var = alpha[2]*v**2 + alpha[3]*w**2
+            
+            self.ekf.Mt = np.diag([v_var, w_var])
+            # ------------------------------------------
+
             # Predict new state and covariance
             self.ekf.predict(
                 u=self.last_cmd,
-                # Note: Assuming your RobotEKF uses these for prediction:
-                sigma_u=self.sigma_u,
-                # Pass necessary arguments for the motion model and Jacobians
+                # The sigma_u argument is redundant if alpha is used in Mt, 
+                # but if your EKF requires it, pass a placeholder like self.sigma_z
+                sigma_u=self.sigma_u, 
                 g_extra_args=(dt,),
-                
-
-                
             )
             
-            self.get_logger().debug(f"EKF Prediction: dt={dt:.3f}s, u={self.last_cmd}")
-        # ---------------------------------------------
+            self.get_logger().debug(f"EKF Prediction: dt={dt:.3f}s, u={self.last_cmd}, Mt_diag={self.ekf.Mt.diagonal()}")
        
         self.publish_estimated_state()
 
