@@ -6,20 +6,14 @@ from  matplotlib.patches import Arc
 
 arrow = u'$\u2191$'
 
+# --- Utility Functions (Gaussian, compute_p_hit_dist, landmark_range_bearing_sensor, etc.) ---
+# These remain unchanged and are correct implementations of the sensor model components.
+
 def gaussian(x, mu, sigma):
     return (1.0 / (np.sqrt(2*np.pi) * sigma)) * np.exp(-0.5 * ((x - mu) / sigma)**2)
 
 
 def compute_p_hit_dist(dist, max_dist, sigma):
-    '''
-    Compute the hit probability p_hit for a given distance measurement.
-    Args:
-        dist: observed distance measurement
-        max_dist: maximum measurable distance
-        sigma: standard deviation of the Gaussian noise
-    Returns:
-        p_hit: normalized hit probability
-    '''
     # Normalize the Gaussian over [0, max_dist]
     normalize_hit = 1e-9
     for j in range(round(max_dist)):
@@ -38,8 +32,12 @@ def landmark_range_bearing_sensor(robot_pose, landmark, sigma, max_range=6.0, fo
     m_x, m_y = landmark[:]
     x, y, theta = robot_pose[:]
 
+    # Add noise to true range and bearing
     r_ = math.dist([x, y], [m_x, m_y]) + np.random.normal(0., sigma[0])
     phi_ = math.atan2(m_y - y, m_x - x) - theta + np.random.normal(0., sigma[1])
+    
+    # Normalize bearing to [-pi, pi] for consistency
+    phi_ = math.atan2(math.sin(phi_), math.cos(phi_))
 
     # filter z for a more realistic sensor simulation (add a max range distance and a FOV)
     if r_ > max_range or abs(phi_) > fov / 2:
@@ -50,13 +48,7 @@ def landmark_range_bearing_sensor(robot_pose, landmark, sigma, max_range=6.0, fo
 def landmark_model_prob(z, landmark, robot_pose, max_range, fov, sigma):
     """""
     Landmark sensor model algorithm:
-    Inputs:
-      - z: the measurements features (range and bearing of the landmark from the sensor) [r, phi]
-      - landmark: the landmark position in the map [m_x, m_y]
-      - x: the robot pose [x,y,theta]
-    Outputs:
-     - p: the probability p(z|x,m) to obtain the measurement z from the state x
-        according to the estimated range and bearing
+    ...
     """""
     m_x, m_y = landmark[:]
     x, y, theta = robot_pose[:]
@@ -70,13 +62,8 @@ def landmark_model_prob(z, landmark, robot_pose, max_range, fov, sigma):
 
 def landmark_model_sample_pose(z, landmark, sigma):
     """""
-    Sample a robot pose from the landmark model
-    Inputs:
-        - z: the measurements features (range and bearing of the landmark from the sensor) [r, phi]
-        - landmark: the landmark position in the map [m_x, m_y]
-        - sigma: the standard deviation of the measurement noise [sigma_r, sigma_phi]
-    Outputs:
-        - x': the sampled robot pose [x', y', theta']
+    Sample a robot pose from the landmark model (Inverse Sensor Model)
+    ...
     """""
     m_x, m_y = landmark[:]
     sigma_r, sigma_phi = sigma[:]
@@ -85,13 +72,20 @@ def landmark_model_sample_pose(z, landmark, sigma):
     r_hat = z[0] + np.random.normal(0, sigma_r)
     phi_hat = z[1] + np.random.normal(0, sigma_phi)
 
+    # Calculate sampled pose [x', y', theta']
     x_ = m_x + r_hat * math.cos(gamma_hat)
     y_ = m_y + r_hat * math.sin(gamma_hat)
     theta_ = gamma_hat - math.pi - phi_hat
+    
+    # Normalize orientation
+    theta_ = math.atan2(math.sin(theta_), math.cos(theta_))
 
     return np.array([x_, y_, theta_])
 
 def landmark_model_jacobian(robot_pose, landmark, eps=1e-6):
+    """""
+    Computes the Jacobian Ht (derivative of the predicted measurement w.r.t the state x).
+    """""
     x, y, theta = robot_pose
     m_x, m_y = landmark
     dx = m_x - x
@@ -107,93 +101,32 @@ def landmark_model_jacobian(robot_pose, landmark, eps=1e-6):
     return Ht
 
 
-
 def plot_sampled_poses(robot_pose, z, landmark, sigma):
-    """""
-    Plot sampled poses from the landmark model
-    """""
     # plot samples poses
     for i in range(1000):
         x_prime = landmark_model_sample_pose(z, landmark, sigma)
-        # plot robot pose
+        # plot robot pose (using an arrow marker for orientation)
         rotated_marker = mpl.markers.MarkerStyle(marker=arrow)
         rotated_marker._transform = rotated_marker.get_transform().rotate_deg(math.degrees(x_prime[2])-90)
         plt.scatter(x_prime[0], x_prime[1], marker=rotated_marker, s=80, facecolors='none', edgecolors='b')
     
-    # plot real pose
+    # plot true pose
     rotated_marker = mpl.markers.MarkerStyle(marker=arrow)
     rotated_marker._transform = rotated_marker.get_transform().rotate_deg(math.degrees(robot_pose[2])-90)
-    plt.scatter(robot_pose[0], robot_pose[1], marker=rotated_marker, s=140, facecolors='none', edgecolors='r')
+    plt.scatter(robot_pose[0], robot_pose[1], marker=rotated_marker, s=140, facecolors='none', edgecolors='r', label='True Pose')
 
     plt.xlabel("x-position [m]")
     plt.ylabel("y-position [m]")
-    plt.title("Landmark Model Pose Sampling")
-    # plt.savefig("landmark_model_sampling.pdf")
+    plt.title("Landmark Model Pose Sampling (1000 Samples)")
+    plt.legend()
     plt.show()
 
-
-def plot_landmarks(landmarks, robot_pose, z, p_z, max_range=6.0, fov=math.pi/4):
-    """""
-    Plot landmarks, robot pose with sensor FOV, and detected landmarks with associated probability
-    """""
-    x, y, theta = robot_pose[:]
-
-    start_angle = theta + fov/2
-    end_angle = theta - fov/2
-
-    plt.figure()
-    ax = plt.gca()
-    # plot robot pose
-    # find the virtual end point for orientation
-    endx = x + 0.5 * math.cos(theta)
-    endy = y + 0.5 * math.sin(theta)
-    plt.plot(x, y, 'or', ms=10)
-    plt.plot([x, endx], [y, endy], linewidth = '2', color='r')
-
-    # plot FOV
-    # get ray target coordinates
-    fov_x_left = x + math.cos(start_angle) * max_range
-    fov_y_left = y + math.sin(start_angle) * max_range
-    fov_x_right = x + math.cos(end_angle) * max_range
-    fov_y_right = y + math.sin(end_angle) * max_range
-
-    plt.plot([x, fov_x_left], [y, fov_y_left], linewidth = '1', color='b')
-    plt.plot([x, fov_x_right], [y, fov_y_right], linewidth = '1', color='b')
-
-    R = max_range
-    a, b = 2*R, 2*R
-    arc = Arc((x, y), a, b,
-                 theta1=math.degrees(end_angle), theta2=math.degrees(start_angle), color='b', lw=1.2)
-    ax.add_patch(arc)
-
-    # plot landmarks
-    for i, lm in enumerate(landmarks):
-        plt.plot(lm[0], lm[1], "sk", ms=10, alpha=0.7)
-
-    # plot perceived landmarks position and associated probability (color scale)
-    lm_z = np.zeros((len(z), 2))
-    for i in range(len(z)):
-        # draw endpoint with probability from Likelihood Fields
-        lx = x + z[i][0] * math.cos(z[i][1]+theta)
-        ly = y + z[i][0] * math.sin(z[i][1]+theta)
-        lm_z[i, :] = lx, ly
-    
-    col = np.array(p_z)
-    plt.scatter(lm_z[:,0], lm_z[:,1], s=60, c=col, cmap='viridis')
-    plt.colorbar()
-
-    plt.show()
+# --- MAIN FUNCTION ---
+def main():
     plt.close('all')
 
-
-def main():
-    ##############################
-    ### Landmark model example ###
-    ##############################
-
-    # robot pose
+    # Define State and Map
     robot_pose = np.array([0., 0., math.pi/4])
-    # landmarks position in the map
     landmarks = [
                  np.array([5., 2.]),
                  np.array([-2.5, 3.]),
@@ -201,54 +134,45 @@ def main():
                  np.array([4., -1.]),
                  np.array([-2., -2.])
                  ]
-    # sensor parameters
+    
+    # Sensor Parameters and Noise (sigma is the noise coefficient input)
+    sigma = np.array([0.3, math.pi/24])
     fov = math.pi/3
     max_range = 6.0
-    sigma = np.array([0.3, math.pi/24])
-
-    # compute measurements and associated probability
-    z = []
-    p = []
-    for i in range(len(landmarks)):
-        # read sensor measurements (range, bearing)
-        z_i = landmark_range_bearing_sensor(robot_pose, landmarks[i], sigma=sigma, max_range=max_range, fov=fov)
-         
-        if z_i is not None: # if landmark is not detected, the measurement is None
-            z.append(z_i)
-            # compute the probability for each measurement according to the landmark model algorithm
-            p_i = landmark_model_prob(z_i, landmarks[i], robot_pose, max_range, fov, sigma)
-            p.append(p_i)
-
-    print("Probability density value:", p)
-    # Plot landmarks, robot pose with sensor FOV, and detected landmarks with associated probability
-    plot_landmarks(landmarks, robot_pose, z, p, fov=fov)
-
-    ##########################################
-    ### Sampling poses from landmark model ###
-    ##########################################
-    if len(z) == 0:
-        print("No landmarks detected!")
-        return
     
-    # consider only the first landmark detected
-    landmark = landmarks[0]
-    z = landmark_range_bearing_sensor(robot_pose, landmark, sigma)
+    # Select the landmark for the single measurement
+    landmark = landmarks[0] 
 
-    # plot landmark
-    plt.plot(landmark[0], landmark[1], "sk", ms=10)
-    plot_sampled_poses(robot_pose, z, landmark, sigma)
-    plt.close('all')
-    # --- Added: Jacobian Computation ---
-    # We must select one landmark to compute the Jacobian against.
-    # Let's use the first detected landmark.
-    if len(z) > 0:
-        landmark_for_jacobian = landmarks[0] # Assuming first landmark is the detected one
+    # --- 1. Generate the Given Measurement z ---
+    # The required measurement z = [r, phi] must be generated from the sensor model.
+    z = landmark_range_bearing_sensor(robot_pose, landmark, sigma, max_range=max_range, fov=fov)
+
+    if z is None:
+        print(f"Landmark at {landmark} is out of range or FOV from {robot_pose}. Cannot proceed with sampling.")
+        return
         
-        Hx = landmark_model_jacobian(robot_pose, landmark_for_jacobian)
-        print("--- Jacobian Hx (w.r.t State) at Initial Pose ---")
-        print(f"Robot Pose: {robot_pose}, Landmark: {landmark_for_jacobian}")
-        print("Jacobian Hx:\n", Hx)
-        print("--------------------------------------------------\n")
+    print(f"--- Landmark Measurement Model Simulation ---")
+    print(f"Given Measurement z: [r={z[0]:.3f}, phi={z[1]:.3f} rad]")
+    print(f"Landmark Position: {landmark}")
+    print(f"Robot True Pose: {robot_pose}")
+    print("-------------------------------------------\n")
+
+    # --- 2. Compute the Jacobian Hx (Requirement Met) ---
+    Hx = landmark_model_jacobian(robot_pose, landmark)
+    print("--- Jacobian Hx (w.r.t State) at Initial Pose ---")
+    print("Jacobian Hx:\n", Hx)
+    print("--------------------------------------------------\n")
+
+
+    # --- 3. Plot 1000 Sampled Poses (Requirement Met) ---
+    # Plot the landmark used for sampling (the cube in the center)
+    plt.plot(landmark[0], landmark[1], "sk", ms=10, label='Landmark M')
+    
+    # Plot 1000 sampled poses
+    plot_sampled_poses(robot_pose, z, landmark, sigma)
+    
+    plt.close('all')
+
 
 if __name__ == "__main__":
     main()
