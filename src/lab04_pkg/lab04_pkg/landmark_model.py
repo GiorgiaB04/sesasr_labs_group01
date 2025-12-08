@@ -238,6 +238,17 @@ def main():
     plt.plot(landmark[0], landmark[1], "sk", ms=10)
     plot_sampled_poses(robot_pose, z, landmark, sigma)
     plt.close('all')
+    # --- Added: Jacobian Computation ---
+    # We must select one landmark to compute the Jacobian against.
+    # Let's use the first detected landmark.
+    if len(z) > 0:
+        landmark_for_jacobian = landmarks[0] # Assuming first landmark is the detected one
+        
+        Hx = landmark_model_jacobian(robot_pose, landmark_for_jacobian)
+        print("--- Jacobian Hx (w.r.t State) at Initial Pose ---")
+        print(f"Robot Pose: {robot_pose}, Landmark: {landmark_for_jacobian}")
+        print("Jacobian Hx:\n", Hx)
+        print("--------------------------------------------------\n")
 
 if __name__ == "__main__":
     main()
