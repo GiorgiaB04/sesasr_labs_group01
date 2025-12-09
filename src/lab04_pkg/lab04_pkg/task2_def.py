@@ -8,7 +8,7 @@ from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Imu
 from landmark_msgs.msg import LandmarkArray
 
-from .ekf_landmark import EKFNode
+from .task1 import EKFNode
 from .EKF import RobotEKF
 from .velocity_model4task2 import motion_model_wrapper, normalize_angle
 from geometry_msgs.msg import Quaternion
@@ -238,27 +238,43 @@ class ExtendedEKFNode(EKFNode):
                     Ht_args=(self.ekf.mu, landmark_pos),
                     hx_args=(self.ekf.mu, landmark_pos)
                 )
-
     def timer_callback(self):
-        now = self.get_clock().now()
-        dt = (now - self.last_time).nanoseconds / 1e9
-        self.last_time = now
+            now = self.get_clock().now()
+            dt = (now - self.last_time).nanoseconds / 1e9
+            self.last_time = now
 
-        if self.initialized:
-            # Predict using current state velocities (Option A)
-            # Controls are passed only to scale process noise via sigma_u and Vt
-            self.ekf.predict(
-                u=self.last_cmd,
-                sigma_u=self.sigma_u,
-                g_extra_args=(dt,)
-            )
+            if self.initialized:
+                v_cmd = self.last_cmd[0]
+                w_cmd = self.last_cmd[1]
+                alpha = self.alpha
 
-            # Keep theta bounded — stabilizes Jacobians and angle innovations
-            self.ekf.mu[2] = normalize_angle(self.ekf.mu[2])
+                # --- CRITICAL FIX: Dynamic calculation of Mt ---
+                # Mt = diag([v_variance, w_variance]), using alpha1 to alpha4
+                v_var = alpha[0]*v_cmd**2 + alpha[1]*w_cmd**2
+                w_var = alpha[2]*v_cmd**2 + alpha[3]*w_cmd**2
+                
+                # The angular drift terms (alpha5, alpha6) are absorbed into the 
+                # uncertainty propagation if Vt and Gt are fully defined.
+                self.ekf.Mt = np.diag([v_var, w_var])
+                # -----------------------------------------------
 
-            self.get_logger().debug(f"EKF Prediction: dt={dt:.3f}s, u={self.last_cmd}")
+                # Predict using current state velocities
+                # u=self.last_cmd is passed to allow the EKF.predict to access command velocities
+                # for the Mt calculation inside the EKF if necessary (though we do it here).
+                self.ekf.predict(
+                    u=self.last_cmd,
+                    # Removed sigma_u argument as it's redundant/misleading when using Mt
+                    g_extra_args=(dt,)
+                )
 
-        self.publish_estimated_state()
+                # Keep theta bounded
+                self.ekf.mu[2] = normalize_angle(self.ekf.mu[2])
+
+                self.get_logger().debug(f"EKF Prediction: dt={dt:.3f}s, u={self.last_cmd}")
+
+            self.publish_estimated_state()
+
+
 
     # =======================
     # Measurement models
