@@ -34,10 +34,11 @@ class ExtendedEKFNode(EKFNode):
 
        
         self.flip_landmark_bearing = False 
-        self.landmarks_topic = "/camera/landmarks"
+        self.landmarks_topic = "/landmarks"
         self.odom_topic = "/odom"
         self.imu_topic = "/imu"
-        yaml_file = '/home/giorgia/group_101/src/lab04_pkg/lab04_pkg/landmarks_real.yaml'
+        #yaml_file = '/home/giorgia/group_101/src/lab04_pkg/lab04_pkg/landmarks_real.yaml'
+        yaml_file = '/home/giorgia/group_101/src/turtlebot3_perception/turtlebot3_perception/config/landmarks.yaml'
 
         self.get_logger().info("Extended EKF (Option A): state = [x, y, θ, v, ω]")
 
@@ -46,7 +47,7 @@ class ExtendedEKFNode(EKFNode):
         self.get_logger().info(f"Loaded {len(self.landmarks)} landmarks from YAML.")
 
         # --- EKF OBJECT: ensure 5-state configuration ---
-        self.ekf = RobotEKF()
+        self.ekf = RobotEKF(initial_mu=[-2,-0.5,0])
         self.ekf.dim_x = 5
         self.ekf.dim_u = 2
         self.ekf.eval_gux = motion_model_wrapper    # uses state v,ω for kinematics; does not overwrite them
@@ -72,6 +73,9 @@ class ExtendedEKFNode(EKFNode):
         self.first_odom = None
         self.last_cmd = np.array([0.0, 0.0])  # [v_cmd, w_cmd] used only for process noise scaling
         self.last_time = self.get_clock().now()
+        if not self.initialized:
+            self.ekf.mu = np.array([-2.0, -0.5, 0.0,0.0,0.0])
+            self.initialized = True
 
         # --- SUBSCRIPTIONS ---
         self.create_subscription(Odometry,       self.odom_topic,      self.odom_callback,      10)
@@ -262,7 +266,7 @@ class ExtendedEKFNode(EKFNode):
                 # u=self.last_cmd is passed to allow the EKF.predict to access command velocities
                 # for the Mt calculation inside the EKF if necessary (though we do it here).
                 self.ekf.predict(
-                    u=self.last_cmd,
+                    u=self.last_cmd,sigma_u=self.sigma_u,
                     # Removed sigma_u argument as it's redundant/misleading when using Mt
                     g_extra_args=(dt,)
                 )

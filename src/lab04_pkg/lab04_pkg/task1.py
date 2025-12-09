@@ -34,13 +34,13 @@ class EKFNode(Node):
         self.get_logger().info(f"Loaded {len(self.landmarks)} landmarks from YAML.")
 
         # ---- EKF setup ----
-        self.ekf = RobotEKF(initial_mu=[-2.0, -0.5, 0.0])
+        self.ekf = RobotEKF(initial_mu=[-2.0, -0.5, 0.0]) # when real robot [ 0 0.77 0]
 
         # Tuning Parameters
         self.alpha = np.array([0.001, 0.01, 0.1, 0.2, 0.05, 0.05])
         self.ekf.Mt = np.eye(2) 
         self.sigma_u = np.array([0.1, 0.1])
-        self.sigma_z = np.array([0.3, math.pi / 24])
+        self.sigma_z = np.array([0.3, math.pi / 18])
         self.Qt = np.diag(self.sigma_z**2)
 
         # Initial EKF uncertainty
