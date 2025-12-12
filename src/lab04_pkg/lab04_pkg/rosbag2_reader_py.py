@@ -219,7 +219,7 @@ def compute_ekf_metrics(bag_path, ekf_topic, truth_topic):
 
 def main():
    
-    BAG_PATH = '/home/giorgia/report 2 sesasr/qt=0.25^2' 
+    BAG_PATH = '/home/giorgia/group_101/src/rosbags/task2_sim/Qt=0.08^2' 
     EKF_TOPIC = '/ekf'           
     TRUTH_TOPIC = '/ground_truth'     
 
