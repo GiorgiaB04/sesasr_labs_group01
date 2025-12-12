@@ -66,7 +66,7 @@ class ExtendedEKFNode(EKFNode):
         # Measurement noise tuning (std devs)
         self.Qt_landmark = np.diag([0.02**2, (math.pi / 36)**2])   # range meters, bearing ~5°
         self.Qt_odom     = np.diag([0.05**2, 0.05**2])             # v, ω from wheel odom
-        self.Qt_imu      = np.diag([0.08**2])                      # ω from IMU
+        self.Qt_imu      = np.diag([0.25**2])                      # ω from IMU
 
         # --- RUNTIME STATE ---
         self.initialized = False

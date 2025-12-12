@@ -26,6 +26,7 @@ setup(
         'console_scripts': [
             'task1_node = lab04_pkg.task1:main',
             'task2_node = lab04_pkg.task2_def:main',
+            'compute_metrics=lab04_pkg.rosbag2_reader_py:main',
         ],
     
     },
