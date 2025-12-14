@@ -94,7 +94,6 @@ class ExtendedEKFNode(EKFNode):
         # Compute change in orientation
         dtheta = w * dt
 
-        # Apply the Jacobian from the professor's book (image)
         return np.array([
             [1, 0, -v * math.cos(th) / w + v * math.cos(th + dtheta / 2) / w, 0, 0],
             [0, 1, -v * math.sin(th) / w + v * math.sin(th + dtheta / 2) / w, 0, 0],
