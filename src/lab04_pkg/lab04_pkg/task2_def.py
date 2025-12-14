@@ -47,7 +47,7 @@ class ExtendedEKFNode(EKFNode):
         self.get_logger().info(f"Loaded {len(self.landmarks)} landmarks from YAML.")
 
         # --- EKF OBJECT: ensure 5-state configuration ---
-        self.ekf = RobotEKF(initial_mu=[-2,-0.5,0])
+        self.ekf = RobotEKF(initial_mu=[0,0.77,0])
         self.ekf.dim_x = 5
         self.ekf.dim_u = 2
         self.ekf.eval_gux = motion_model_wrapper    # uses state v,ω for kinematics; does not overwrite them
